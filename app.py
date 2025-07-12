@@ -1,8 +1,6 @@
 from fastapi import FastAPI
-from pydantic import BaseModel, Field
-import requests
+from pydantic import BaseModel
 import csv
-import json
 
 app = FastAPI()
 
