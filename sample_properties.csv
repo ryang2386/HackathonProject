@@ -1,0 +1,6 @@
+property_address,floor,suite,size_SF,rent_SF_year,associate_1,broker_email_id,associate_2,associate_3,associate_4,annual_rent,monthly_rent,gci_on_3_years
+"999 Pine St","1st",101,800,18.5,"Michael Scott","michael.scott@example.com","Jim Halpert","Pam Beesly","Dwight Schrute",14800.0,1233.33,4440.0
+"555 Cedar Ave","2nd",204,1300,24.0,"Sarah Connor","sarah.connor@example.com","John Connor","Kyle Reese","T-800",31200.0,2600.0,9360.0
+"777 Maple Dr","3rd",301,950,21.0,"Tony Stark","tony.stark@example.com","Pepper Potts","Happy Hogan","Rhodey Rhodes",19950.0,1662.5,5985.0
+"333 Birch Ln","1st",105,1100,19.0,"Hermione Granger","hermione.granger@example.com","Harry Potter","Ron Weasley","Luna Lovegood",20900.0,1741.67,6270.0
+"888 Oak Blvd","4th",402,1600,26.5,"Steve Rogers","steve.rogers@example.com","Bucky Barnes","Sam Wilson","Natasha Romanoff",42400.0,3533.33,12720.0
