@@ -9,11 +9,6 @@ app = FastAPI()
 # Initialize empty properties list
 properties = []
 
-def _find_next_id():
-    if not properties:
-        return 1
-    return max(property.unique_id for property in properties) + 1
-
 class Property(BaseModel):
     unique_id: int
     property_address: str
@@ -29,18 +24,6 @@ class Property(BaseModel):
     annual_rent: float
     monthly_rent: float
     gci_on_3_years: float
-
-# Add initial properties
-properties.extend([
-    Property(unique_id=1, property_address="123 Main St", floor="1st", suite=101, size_SF=1000, rent_SF_year=20.0,
-             associate_1="John Doe", broker_email_id="john.doe@example.com", associate_2="Jane Smith",
-             associate_3="Mike Johnson", associate_4="Emily Davis", annual_rent=20000.0, monthly_rent=1666.67,
-             gci_on_3_years=6000.0),
-    Property(unique_id=2, property_address="456 Elm St", floor="2nd", suite=202, size_SF=1500, rent_SF_year=25.0,
-             associate_1="Alice Brown", broker_email_id="alice.brown@example.com", associate_2="Bob White",
-             associate_3="Charlie Black", associate_4="Diana Green", annual_rent=37500.0, monthly_rent=3125.0,
-             gci_on_3_years=11250.0)
-])
 
 def import_properties_from_csv(csv_file_path: str):
     """
