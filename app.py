@@ -6,6 +6,8 @@ import csv
 import os
 import requests
 import json
+import hashlib
+import secrets
 
 app = FastAPI()
 
@@ -31,8 +33,9 @@ class ConversationalOpenAI:
     def chat(self, user_message: str, model: str ="gpt-4o-mini", max_tokens: int = 150):
         # Check if user is asking about properties or CSV
         property_info = ""
-        if any(word in user_message.lower() for word in ["property", "properties", "rent", "csv", "export", "document"]):
+        if any(word in user_message.lower() for word in ["property", "properties", "rent", "csv", "export", "document", "how many", "average", "highest", "lowest", "largest", "biggest", "cheapest", "most expensive"]):
             property_info = query_properties(user_message)
+            print(f"Property query result: {property_info}")  # Debug print
             
         # Add property context if relevant
         if property_info and "No properties" not in property_info:
@@ -106,7 +109,8 @@ class ConversationalOpenAI:
 ai = ConversationalOpenAI()
 
 # Pydantic models for AI endpoints
-class ChatMessage(BaseModel):
+class UserChatMessage(BaseModel):
+    user_id: str
     message: str
     model: str = "gpt-4o-mini"
     max_tokens: int = 150
@@ -118,10 +122,18 @@ class ChatResponse(BaseModel):
     error: str = None
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat_with_ai(chat_message: ChatMessage):
+async def chat_with_ai(chat_message: UserChatMessage):
     """Send a message to the AI and get a response"""
+    if chat_message.user_id not in users:
+        return ChatResponse(success = False, error = "User does not exist")
+
+    if chat_message.user_id not in user_conversations:
+        user_conversations[chat_message.user_id] = ConversationalOpenAI()
+
+    user_ai = user_conversations[chat_message.user_id]
+
     try:
-        result = ai.chat(
+        result = user_ai.chat(
             user_message=chat_message.message,
             model=chat_message.model,
             max_tokens=chat_message.max_tokens
@@ -133,15 +145,26 @@ async def chat_with_ai(chat_message: ChatMessage):
             error=f"Chat error: {str(e)}"
         )
 
-@app.get("/chat/history")
-async def get_chat_history():
+@app.get("/crm/conversations/{user_id}")
+async def get_chat_history(user_id: str):
     """Get the conversation history"""
-    return {"conversation_history": ai.get_saved_conversation()}
+    if user_id not in users:
+        return {"User doesn't exist"}
+    
+    if user_id not in user_conversations:
+        return {"error": "User does not exist or has no conversation history"}
 
-@app.post("/reset")
-async def clear_chat_history():
+    return {"conversation_history": user_conversations[user_id].get_saved_conversation()}
+
+@app.post("/reset/{user_id}")
+async def clear_chat_history(user_id: str):
     """Clear the conversation history"""
-    ai.clear_conversation()
+    if user_id not in users:
+        return {"User does not exist."}
+
+    if user_id in user_conversations:
+        user_conversations[user_id].clear_conversation()
+
     return {"message": "Conversation history cleared"}
 
 def ai_user_chat():
@@ -173,8 +196,6 @@ def ai_user_chat():
             else:
                 print(f"Error: {response['error']}")
         
-
-
 class Property(BaseModel):
     unique_id: int
     property_address: str
@@ -191,6 +212,40 @@ class Property(BaseModel):
     monthly_rent: float
     gci_on_3_years: float
 
+class User(BaseModel):
+    user_id: str
+    email: str
+    password: str
+
+class UserLogin(BaseModel):
+    user_id: str
+    password: str
+
+class UserRegistration(BaseModel):
+    user_id: str
+    password: str
+    email: str
+
+users = {}
+user_conversations = {}
+
+def hash_password(password: str) -> str:
+    salt = secrets.token_hex(16)
+    return hashlib.sha256((password + salt).encode()).hexdigest() + ":" + salt
+
+def verify_password(password: str, password_hash: str) -> bool:
+    try:
+        hash_part, salt = password_hash.split(":")
+        return hashlib.sha256((password + salt).encode()).hexdigest() == hash_part
+    except ValueError:
+        return False
+    
+def auth_user(user_id: str, password: str) -> User:
+    user = users.get(user_id)
+    if user and verify_password(password, user.password_hash):
+        return user
+    return None
+
 def import_properties_from_csv(csv_file_path: str):
     """
     Import properties from a CSV file and add them to the properties list
@@ -205,7 +260,10 @@ def import_properties_from_csv(csv_file_path: str):
             reader = csv.DictReader(csvfile)
             
             imported_count = 0
-            for row in reader:
+            skipped_count = 0
+            error_details = []
+            
+            for row_num, row in enumerate(reader, start=2):  # Start at 2 because row 1 is header
                 try:
                     # Handle currency formatting and convert string values to appropriate types
                     def clean_currency(value):
@@ -217,38 +275,71 @@ def import_properties_from_csv(csv_file_path: str):
                     def clean_number(value):
                         """Clean and convert numeric values"""
                         cleaned = clean_currency(value)
-                        return float(cleaned) if cleaned else 0.0
+                        try:
+                            return float(cleaned) if cleaned else 0.0
+                        except ValueError:
+                            return 0.0
                     
-                    # Map your CSV columns to the expected format
+                    def clean_int(value):
+                        """Clean and convert to integer"""
+                        cleaned = clean_currency(value)
+                        try:
+                            return int(float(cleaned)) if cleaned else 0
+                        except ValueError:
+                            return 0
+                    
+                    # Debug: Print the row being processed
+                    print(f"Processing row {row_num}: {row.get('Property Address', 'Unknown')}")
+                    
+                    # Map your CSV columns to the expected format with better error handling
                     property_data = {
-                        'unique_id': int(row['unique_id']),
-                        'property_address': row['Property Address'],
-                        'floor': row['Floor'],
-                        'suite': int(row['Suite']),
-                        'size_SF': int(row['Size (SF)']),
-                        'rent_SF_year': clean_number(row['Rent/SF/Year']),
-                        'associate_1': row['Associate 1'],
-                        'broker_email_id': row['BROKER Email ID'],
-                        'associate_2': row['Associate 2'],
-                        'associate_3': row['Associate 3'],
-                        'associate_4': row['Associate 4'],
-                        'annual_rent': clean_number(row['Annual Rent']),
-                        'monthly_rent': clean_number(row['Monthly Rent']),
-                        'gci_on_3_years': clean_number(row['GCI On 3 Years'])
+                        'unique_id': clean_int(row.get('unique_id', row_num)),  # Use row number if unique_id missing
+                        'property_address': row.get('Property Address', '').strip(),
+                        'floor': row.get('Floor', '').strip(),
+                        'suite': clean_int(row.get('Suite', 0)),
+                        'size_SF': clean_int(row.get('Size (SF)', 0)),
+                        'rent_SF_year': clean_number(row.get('Rent/SF/Year', 0)),
+                        'associate_1': row.get('Associate 1', '').strip(),
+                        'broker_email_id': row.get('BROKER Email ID', '').strip(),
+                        'associate_2': row.get('Associate 2', '').strip(),
+                        'associate_3': row.get('Associate 3', '').strip(),
+                        'associate_4': row.get('Associate 4', '').strip(),
+                        'annual_rent': clean_number(row.get('Annual Rent', 0)),
+                        'monthly_rent': clean_number(row.get('Monthly Rent', 0)),
+                        'gci_on_3_years': clean_number(row.get('GCI On 3 Years', 0))
                     }
+                    
+                    # Validate essential fields
+                    if not property_data['property_address']:
+                        skipped_count += 1
+                        error_details.append(f"Row {row_num}: Missing property address")
+                        continue
                     
                     # Create Property object and add to list
                     new_property = Property(**property_data)
                     properties.append(new_property)
                     imported_count += 1
                     
-                    print(f"Imported: {property_data['property_address']}")
+                    if imported_count % 50 == 0:  # Progress indicator
+                        print(f"Imported {imported_count} properties so far...")
                     
-                except (ValueError, KeyError) as e:
-                    print(f"Error importing row {reader.line_num}: {e}")
+                except (ValueError, KeyError, TypeError) as e:
+                    skipped_count += 1
+                    error_msg = f"Row {row_num}: {str(e)} - Data: {dict(row)}"
+                    error_details.append(error_msg)
+                    print(f"Error importing row {row_num}: {e}")
                     continue
                     
-            print(f"Successfully imported {imported_count} properties from {csv_file_path}")
+            print(f"Import Summary:")
+            print(f"- Successfully imported: {imported_count} properties")
+            print(f"- Skipped due to errors: {skipped_count} rows")
+            print(f"- Total rows processed: {imported_count + skipped_count}")
+            
+            if error_details:
+                print(f"\nFirst 10 errors:")
+                for error in error_details[:10]:
+                    print(f"  {error}")
+                
             return imported_count
             
     except FileNotFoundError:
@@ -257,6 +348,39 @@ def import_properties_from_csv(csv_file_path: str):
     except Exception as e:
         print(f"Error reading CSV file: {e}")
         return 0
+
+@app.post("/crm/create_user")
+async def create_user(user: UserRegistration):
+    if user.user_id in users:
+        return {"error": "User ID already exists"}
+    
+    hash_password = hash_password(user.password)
+
+    new_user = User(
+        user_id = user.user_id,
+        email = user.email,
+        password_hash = hash_password
+    )
+
+    users[user.user_id] = new_user
+    user_conversations[user.user_id] = ConversationalOpenAI()
+
+    return {"message": "User created successfully", "user_id": user.user_id}
+
+@app.post("/crm/login")
+async def login_user(user: UserLogin):
+    """Login user and return user details if successful"""
+    user = auth_user(user.user_id, user.password)
+    
+    if not user:
+        return {"error": "Invalid user ID or password"}
+    
+    # Return user details without password
+    return {
+        "user_id": user.user_id,
+        "email": user.email,
+        "message": "Login successful"
+    }
 
 @app.get("/properties")
 async def get_properties():
@@ -308,7 +432,7 @@ def query_properties(question: str):
     
     if any(word in question_lower for word in ["lowest rent", "cheapest", "minimum rent"]):
         min_prop = min(properties, key=lambda p: p.annual_rent)
-        return f"The lowest rent is ${min_prop.annual_rent:,.2f} at {min_prop.property_address}, Floor {max_prop.floor}, Suite {min_prop.suite}"
+        return f"The lowest rent is ${min_prop.annual_rent:,.2f} at {min_prop.property_address}, Floor {min_prop.floor}, Suite {min_prop.suite}"
     
     if any(word in question_lower for word in ["largest", "biggest", "maximum size"]):
         largest_prop = max(properties, key=lambda p: p.size_SF)
@@ -350,6 +474,17 @@ async def debug_api_key():
         "dotenv_loaded": True  # Since load_dotenv() was called
     }
 
+@app.get("/test/property-query")
+async def test_property_query(question: str = "how many properties"):
+    """Test endpoint to check if property queries work"""
+    result = query_properties(question)
+    return {
+        "question": question,
+        "result": result,
+        "properties_count": len(properties),
+        "properties_loaded": len(properties) > 0
+    }
+
 @app.get("/export/csv")
 async def export_properties_csv():
     """Export current properties as CSV"""
@@ -364,3 +499,47 @@ async def export_properties_csv():
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=properties_export.csv"}
     )
+
+@app.get("/debug/csv-analysis")
+async def analyze_csv(csv_file_path: str = "HackathonInternalKnowledgeBase.csv"):
+    """Analyze CSV file to identify potential import issues"""
+    try:
+        with open(csv_file_path, 'r', newline='', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
+            
+            total_rows = 0
+            issues = []
+            sample_data = []
+            column_names = reader.fieldnames
+            
+            for row_num, row in enumerate(reader, start=2):
+                total_rows += 1
+                
+                # Check for common issues
+                if not row.get('Property Address', '').strip():
+                    issues.append(f"Row {row_num}: Missing Property Address")
+                
+                if not row.get('unique_id', '').strip():
+                    issues.append(f"Row {row_num}: Missing unique_id")
+                
+                # Sample first 3 rows for inspection
+                if len(sample_data) < 3:
+                    sample_data.append({
+                        "row_number": row_num,
+                        "data": dict(row)
+                    })
+            
+            return {
+                "csv_file": csv_file_path,
+                "total_rows_in_csv": total_rows,
+                "column_names": column_names,
+                "issues_found": len(issues),
+                "first_10_issues": issues[:10],
+                "sample_rows": sample_data,
+                "properties_currently_loaded": len(properties)
+            }
+            
+    except FileNotFoundError:
+        return {"error": f"File not found: {csv_file_path}"}
+    except Exception as e:
+        return {"error": f"Error analyzing CSV: {str(e)}"}
