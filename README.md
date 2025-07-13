@@ -49,7 +49,7 @@ Here's an example of a conversation with the LLM regarding the property informat
 
 <img width="1914" height="1065" alt="Screenshot 2025-07-13 175332" src="https://github.com/user-attachments/assets/e818cd51-d1ab-4961-9ec3-edb5acf02113" />
 
-"Property data context" was not a part of the user's question in this example.
+The text containing "Property data context..." was not a part of the user's question in this example.
 
 ## License
 
