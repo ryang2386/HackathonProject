@@ -17,25 +17,25 @@ The purpose of this app is to create a Python-based RESTful API app that uses La
 
 First, many packages are being used in this app, and it may be required to install them before you can run the app.
 
-5. **Install Packages**
+**Install Packages**
 
    ```bash
    pip install -insert Python package here-
    ```
   
-  Or you can also install the packages using:
+Or you can also install the packages using:
 
   ```bash
    python -m pip install -insert Python package here-
    ```
 
-   Before running the app, uvicorn must be installed. You can do so by typing this command in the terminal:
+Before running the app, uvicorn must be installed. You can do so by typing this command in the terminal:
 
    ```bash
    python -m pip install uvicorn[standard]
    ```
    
-   After the packages are installed, you can run the program using this command:
+After the packages are installed, you can run the program using this command:
 
    ```bash
    python -m uvicorn app:app --reload
