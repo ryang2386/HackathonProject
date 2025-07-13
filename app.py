@@ -366,12 +366,12 @@ async def create_user(user: UserRegistration):
     if user.user_id in users:
         return {"error": "User ID already exists"}
     
-    hash_password = hash_password(user.password)
+    hashed_password = hash_password(user.password)
 
     new_user = User(
         user_id = user.user_id,
         email = user.email,
-        password_hash = hash_password
+        password_hash = hashed_password
     )
 
     users[user.user_id] = new_user
