@@ -3,3 +3,6 @@
 # It is common to have sensitive information such as API keys in these files.
 .env
 .env.local
+
+# Test file to verify gitignore is working
+test_ignore.txt
