@@ -60,5 +60,7 @@ Once the app is running, go to https://[localhost]/docs to use FastAPI to test t
 ## Contact
 
 GitHub: https://github.com/ryang2386
+
 LinkedIn: https://www.linkedin.com/in/ryangayle/
+
 Email: gayler02@nyu.edu
