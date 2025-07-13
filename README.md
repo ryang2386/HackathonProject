@@ -45,6 +45,10 @@ After the packages are installed, you can run the program using this command:
 
 This app can be used by various companies that want quick access to information regarding properties that they manage. This app gives you the ability to create user IDs for each of your employees, and each employee would have the ability to upload CSV documents and ask the LLM specific information about the documents. Soon, the ability to retrieve, capture, and store information through chats will be available. Overall, this app can be a tool utilized by any company that want easier ways to parse through files and retrieve the information that they want easily.
 
+Here's an example of a conversation with the LLM regarding the property information in the database:
+
+<img width="1914" height="1065" alt="Screenshot 2025-07-13 175332" src="https://github.com/user-attachments/assets/e818cd51-d1ab-4961-9ec3-edb5acf02113" />
+
 ## License
 
 None.
