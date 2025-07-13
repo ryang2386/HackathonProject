@@ -474,17 +474,6 @@ async def debug_api_key():
         "dotenv_loaded": True  # Since load_dotenv() was called
     }
 
-@app.get("/test/property-query")
-async def test_property_query(question: str = "how many properties"):
-    """Test endpoint to check if property queries work"""
-    result = query_properties(question)
-    return {
-        "question": question,
-        "result": result,
-        "properties_count": len(properties),
-        "properties_loaded": len(properties) > 0
-    }
-
 @app.get("/export/csv")
 async def export_properties_csv():
     """Export current properties as CSV"""
@@ -499,47 +488,3 @@ async def export_properties_csv():
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=properties_export.csv"}
     )
-
-@app.get("/debug/csv-analysis")
-async def analyze_csv(csv_file_path: str = "HackathonInternalKnowledgeBase.csv"):
-    """Analyze CSV file to identify potential import issues"""
-    try:
-        with open(csv_file_path, 'r', newline='', encoding='utf-8') as csvfile:
-            reader = csv.DictReader(csvfile)
-            
-            total_rows = 0
-            issues = []
-            sample_data = []
-            column_names = reader.fieldnames
-            
-            for row_num, row in enumerate(reader, start=2):
-                total_rows += 1
-                
-                # Check for common issues
-                if not row.get('Property Address', '').strip():
-                    issues.append(f"Row {row_num}: Missing Property Address")
-                
-                if not row.get('unique_id', '').strip():
-                    issues.append(f"Row {row_num}: Missing unique_id")
-                
-                # Sample first 3 rows for inspection
-                if len(sample_data) < 3:
-                    sample_data.append({
-                        "row_number": row_num,
-                        "data": dict(row)
-                    })
-            
-            return {
-                "csv_file": csv_file_path,
-                "total_rows_in_csv": total_rows,
-                "column_names": column_names,
-                "issues_found": len(issues),
-                "first_10_issues": issues[:10],
-                "sample_rows": sample_data,
-                "properties_currently_loaded": len(properties)
-            }
-            
-    except FileNotFoundError:
-        return {"error": f"File not found: {csv_file_path}"}
-    except Exception as e:
-        return {"error": f"Error analyzing CSV: {str(e)}"}
