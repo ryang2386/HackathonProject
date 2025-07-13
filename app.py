@@ -144,6 +144,18 @@ async def chat_with_ai(chat_message: UserChatMessage):
             success=False,
             error=f"Chat error: {str(e)}"
         )
+    
+@app.post("/chat/saved/{user_id}", response_model=ChatResponse)
+async def save_chat_history(user_id: str):
+    """Save the conversation history"""
+    if user_id not in users:
+        return ChatResponse(success=False, error="User does not exist.")
+
+    if user_id not in user_conversations:
+        return ChatResponse(success=False, error="User has no conversation history.")
+
+    user_conversations[user_id].save_conversation()
+    return ChatResponse(success=True, response="Conversation history saved.")
 
 @app.get("/crm/conversations/{user_id}")
 async def get_chat_history(user_id: str):
