@@ -262,11 +262,6 @@ def import_properties_from_csv(csv_file_path: str):
 async def get_properties():
     return properties
 
-@app.post("/properties", status_code=201)
-async def create_property(property: Property):
-    properties.append(property)
-    return property
-
 @app.post("/upload_docs")
 async def upload_docs(csv_file_path: str):
     """Import properties from a CSV file"""
